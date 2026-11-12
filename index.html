@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1c2230">
+<title>Treasury Engine</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f5d62'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'%3ETE%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f6f6f3;--panel:#ffffff;--ink:#1f2328;--muted:#5d6670;--line:#dcdcd6;
+  --accent:#2f5d62;--accent-ink:#ffffff;--soft:#eef2f1;--attn:#8a6a1f;--attn-bg:#f7f0dd;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181d;--panel:#1d2128;--ink:#e6e8eb;--muted:#9aa3ad;--line:#2e343d;
+    --accent:#7fb3b8;--accent-ink:#10161a;--soft:#232931;--attn:#d9b866;--attn-bg:#2c271a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181d;--panel:#1d2128;--ink:#e6e8eb;--muted:#9aa3ad;--line:#2e343d;
+  --accent:#7fb3b8;--accent-ink:#10161a;--soft:#232931;--attn:#d9b866;--attn-bg:#2c271a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0 6px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--muted);font-size:14px}
+nav{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+nav button{white-space:nowrap}
+button{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 14px;cursor:pointer}
+button.on,button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{background:transparent}
+main{padding:18px 0 60px}
+section{display:none}
+section.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.card h2{font-size:18px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+label{display:block;font-size:14px;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:16px;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+textarea{min-height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th{font-size:13px;color:var(--muted);text-align:left;font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:4px;border-bottom:1px solid var(--line);vertical-align:middle}
+td input,td select{padding:6px 8px;font-size:15px}
+pre{background:var(--soft);border-radius:10px;padding:14px;overflow-x:auto;font-size:14px;line-height:1.45;margin:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.flags li{margin-bottom:4px}
+.attn{background:var(--attn-bg);color:var(--attn);border-radius:10px;padding:10px 14px}
+.note{color:var(--muted);font-size:14px}
+.x{padding:4px 10px}
+:root{--s1:#8fa3ad;--s2:#b9b2a3;--s3:#c9c3b6;--s4:#2f5d62;--s5:#5e8b8f;--s6:#a7c4c2}
+:root[data-theme="dark"]{--s1:#56656e;--s2:#6d6759;--s3:#4a4639;--s4:#7fb3b8;--s5:#5a8c90;--s6:#3d5a5c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--s1:#56656e;--s2:#6d6759;--s3:#4a4639;--s4:#7fb3b8;--s5:#5a8c90;--s6:#3d5a5c}}
+.bar{display:flex;height:22px;border-radius:8px;overflow:hidden;margin:4px 0 10px;background:var(--soft)}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;margin-bottom:12px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.big{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.big div{background:var(--soft);border-radius:10px;padding:10px 12px}
+.big b{display:block;font-size:22px}
+.big small{color:var(--muted);font-size:13px}
+table.sum{min-width:0}table.sum td{padding:6px 2px}table.sum td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}table.sum tr.t td{font-weight:700;border-top:2px solid var(--line)}table.sum .sub2{color:var(--muted);font-size:14px;padding-left:16px}
+td.pay{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Treasury Engine</h1>
+        <div class="sub">ADV Media Limited Company. Stages batches only. A human authorizes every transfer.</div>
+      </div>
+      <button class="ghost" id="themeBtn" title="Theme">Theme</button>
+    </div>
+    <nav id="tabs">
+      <button data-tab="breakdown" class="on">Event breakdown</button>
+      <button data-tab="run">Weekly run</button>
+      <button data-tab="work">Crew work</button>
+      <button data-tab="crew">Crew rates</button>
+      <button data-tab="fixed">Fixed costs</button>
+      <button data-tab="events">Events and tax</button>
+      <button data-tab="msg">Messages</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="breakdown" class="on">
+  <div class="card">
+    <h2>Event</h2>
+    <div class="row" style="margin:0 0 12px">
+      <select id="bdPick" style="flex:1;min-width:200px"></select>
+      <button id="bdNew">New event</button>
+    </div>
+    <div class="grid" id="bdFields">
+      <div><label>Event name</label><input data-ev="name"></div>
+      <div><label>Event date</label><input type="date" data-ev="date"></div>
+      <div><label>Event total, what the client pays ($)</label><input inputmode="decimal" data-ev="revenue"></div>
+      <div><label>Direct costs: rentals, travel, consumables ($, optional)</label><input inputmode="decimal" data-ev="directCosts"></div>
+      <div><label>Owner pay, % of profit after tax</label><input inputmode="decimal" data-set="ownerPct" placeholder="required, e.g. 50"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Positions</h2>
+    <p class="note">Leave rate blank to use the crew-rates file. These rows also show on the Crew work tab.</p>
+    <div class="tablewrap" id="bdPositions"></div>
+    <div class="row"><button id="bdAddPos">Add position</button></div>
+  </div>
+  <div class="card">
+    <h2>How it adds up</h2>
+    <div id="bdBig"></div>
+    <div id="bdBar"></div>
+    <div id="bdTable"></div>
+    <pre id="bdOut" style="display:none"></pre>
+    <div id="bdNotes"></div>
+    <div class="row"><button id="bdCopy">Copy breakdown</button></div>
+    <p class="note">Owner pay here is what this event earns you. Money actually comes out through the Weekly run, which checks the $10,000 reserve and open bills first.</p>
+  </div>
+  <div class="card">
+    <h2>All events</h2>
+    <div class="tablewrap" id="bdAll"></div>
+  </div>
+</section>
+
+<section id="run">
+  <div class="card">
+    <h2>This run</h2>
+    <div class="grid">
+      <div><label>Run date</label><input type="date" data-set="runDate"></div>
+      <div><label>Operating balance ($)</label><input inputmode="decimal" data-set="operatingBalance" placeholder="required"></div>
+      <div><label>Tax Bucket balance ($)</label><input inputmode="decimal" data-set="taxBucket" placeholder="required, do not assume zero"></div>
+      <div><label>Batch date (blank = earliest open due date)</label><input type="date" data-set="batchDate"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Output 1: Authorization summary</h2>
+    <pre id="summary"></pre>
+    <div class="row"><button id="copySummary">Copy summary</button></div>
+  </div>
+  <div class="card">
+    <h2>Output 2: Batch file</h2>
+    <pre id="csv"></pre>
+    <div class="row"><button id="dlCsv" class="primary">Download CSV</button><button id="copyCsv">Copy CSV</button></div>
+  </div>
+  <div class="card">
+    <h2>Output 3: Flags</h2>
+    <div id="flags"></div>
+  </div>
+  <div class="card">
+    <h2>Payroll, not in this batch</h2>
+    <div id="payroll"></div>
+  </div>
+  <div class="card">
+    <h2>Calculation detail</h2>
+    <pre id="detail"></pre>
+  </div>
+</section>
+
+<section id="work">
+  <div class="card">
+    <h2>Crew work</h2>
+    <p class="note">One row per person per event. Leave rate blank to use the crew-rates file. Status: "done" means paid. Everything not "done" counts toward Open Contractor Obligations.</p>
+    <div class="tablewrap" id="t-work"></div>
+    <div class="row"><button data-add="work">Add row</button></div>
+  </div>
+  <div class="card">
+    <h2>Paste a roster (CSV)</h2>
+    <p class="note">Header row: name,role,event,eventDate,units,rateType,rate,status. rateType is day or hour. Dates as YYYY-MM-DD.</p>
+    <textarea data-paste="work"></textarea>
+    <div class="row"><button data-import="work">Add these rows</button></div>
+  </div>
+</section>
+
+<section id="crew">
+  <div class="card">
+    <h2>Crew rates</h2>
+    <div class="tablewrap" id="t-crew"></div>
+    <div class="row"><button data-add="crew">Add row</button></div>
+  </div>
+  <div class="card">
+    <h2>Paste crew rates (CSV)</h2>
+    <p class="note">Header row: name,role,dayRate,hourlyRate,w9,profile,type. w9 and profile are yes or no. type is contractor or w2.</p>
+    <textarea data-paste="crew"></textarea>
+    <div class="row"><button data-import="crew">Add these rows</button></div>
+  </div>
+</section>
+
+<section id="fixed">
+  <div class="card">
+    <h2>Fixed costs</h2>
+    <p class="note">Recurring bills that are not contractor pay. Due day is the day of the month. A due day past the end of a month uses that month's last day.</p>
+    <div class="tablewrap" id="t-fixed"></div>
+    <div class="row"><button data-add="fixed">Add row</button></div>
+  </div>
+  <div class="card">
+    <h2>Paste fixed costs (CSV)</h2>
+    <p class="note">Header row: name,amount,dueDay</p>
+    <textarea data-paste="fixed"></textarea>
+    <div class="row"><button data-import="fixed">Add these rows</button></div>
+  </div>
+</section>
+
+<section id="events">
+  <div class="card">
+    <h2>Events and tax set-aside</h2>
+    <p class="note">Set-aside is 25% of Event Net Revenue once payment is received. Net = revenue minus contractor pay for that event (from Crew work) minus direct costs. Blank direct costs makes the number provisional. Moving a set-aside into the Tax Bucket is a button, so nothing is counted twice.</p>
+    <div class="tablewrap" id="t-events"></div>
+    <div class="row"><button data-add="events">Add row</button></div>
+  </div>
+  <div class="card">
+    <h2>Set-aside calculation</h2>
+    <pre id="taxDetail"></pre>
+  </div>
+</section>
+
+<section id="msg">
+  <div class="card">
+    <h2>Contractor reply</h2>
+    <div class="grid">
+      <div><label>Person and event</label><select id="msgPick"></select></div>
+    </div>
+    <pre id="msgOut" style="margin-top:12px;white-space:pre-wrap"></pre>
+    <div class="row"><button id="copyMsg">Copy message</button></div>
+  </div>
+</section>
+
+<section id="settings">
+  <div class="card">
+    <h2>Rules</h2>
+    <div class="grid">
+      <div><label>Tax Bucket held in operating account</label>
+        <select data-set="taxInOperating"><option value="yes">yes</option><option value="no">no</option></select></div>
+      <div><label>Minimum reserve</label><input value="$10,000.00" disabled></div>
+      <div><label>Tax set-aside rate</label><input value="25%" disabled></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Payout provider</h2>
+    <div class="grid">
+      <div><label>Provider name</label><input data-set="providerName" placeholder="e.g. Gusto, Melio, bank ACH"></div>
+      <div><label>Normal delivery window</label><input data-set="deliveryWindow" placeholder="e.g. within 2 business days"></div>
+    </div>
+    <p class="note">If the delivery window is blank, messages will not promise a day.</p>
+  </div>
+  <div class="card">
+    <h2>Batch template</h2>
+    <p class="note">Paste the header row from your provider's sample import file. The batch file will match its columns and order. Leave blank for the default: name, amount, event, event_date, payout_date, memo.</p>
+    <input data-set="templateHeader" placeholder="Recipient Name,Amount,Memo,...">
+  </div>
+  <div class="card">
+    <h2>Backup</h2>
+    <p class="note">All data lives only in this browser. Nothing is sent anywhere. Export a backup to move it to another device.</p>
+    <div class="row">
+      <button id="exportBtn">Export backup</button>
+      <label class="note" style="display:inline-block"><input type="file" id="importFile" accept=".json" style="width:auto"></label>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script id="engine">
+(function(root){
+'use strict';
+var MIN_RESERVE = 1000000; // cents
+var TAX_RATE_NUM = 25, TAX_RATE_DEN = 100;
+
+function toCents(v){
+  if(v===null||v===undefined) return null;
+  var s=String(v).replace(/[$,\s]/g,'');
+  if(s==='') return null;
+  var n=Number(s);
+  if(!isFinite(n)) return NaN;
+  return Math.round(n*100);
+}
+function fmt(c){
+  var neg=c<0; c=Math.abs(c);
+  var d=Math.floor(c/100), r=c%100;
+  var s=String(d).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return (neg?'-':'')+'$'+s+'.'+(r<10?'0':'')+r;
+}
+function parseDate(s){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s||'')) return null;
+  var p=s.split('-').map(Number);
+  var d=new Date(Date.UTC(p[0],p[1]-1,p[2]));
+  return d.getUTCMonth()===p[1]-1?d:null;
+}
+function iso(d){return d.toISOString().slice(0,10);}
+function addDays(d,n){return new Date(d.getTime()+n*86400000);}
+function nthWeekday(y,m,dow,n){ // n>=1, or -1 for last
+  if(n>0){var d=new Date(Date.UTC(y,m,1));var off=(dow-d.getUTCDay()+7)%7;return new Date(Date.UTC(y,m,1+off+7*(n-1)));}
+  var l=new Date(Date.UTC(y,m+1,0));var back=(l.getUTCDay()-dow+7)%7;return new Date(Date.UTC(y,m,l.getUTCDate()-back));
+}
+// Federal Reserve observed closures. Saturday holidays: no closure. Sunday holidays: closed Monday.
+function bankHolidays(y){
+  var out={};
+  function fixed(m,day,name){
+    var d=new Date(Date.UTC(y,m,day)),w=d.getUTCDay();
+    if(w===6) return; if(w===0) d=addDays(d,1);
+    out[iso(d)]=name;
+  }
+  fixed(0,1,"New Year's Day");
+  out[iso(nthWeekday(y,0,1,3))]='Martin Luther King Jr. Day';
+  out[iso(nthWeekday(y,1,1,3))]="Washington's Birthday";
+  out[iso(nthWeekday(y,4,1,-1))]='Memorial Day';
+  fixed(5,19,'Juneteenth');
+  fixed(6,4,'Independence Day');
+  out[iso(nthWeekday(y,8,1,1))]='Labor Day';
+  out[iso(nthWeekday(y,9,1,2))]='Columbus Day';
+  fixed(10,11,'Veterans Day');
+  out[iso(nthWeekday(y,10,4,4))]='Thanksgiving Day';
+  fixed(11,25,'Christmas Day');
+  return out;
+}
+function holidayName(d){return bankHolidays(d.getUTCFullYear())[iso(d)]||null;}
+function dueDate(eventDate){
+  var e=parseDate(eventDate); if(!e) return null;
+  var d=addDays(e,30), notes=[];
+  var w=d.getUTCDay();
+  if(w===6){d=addDays(d,2);notes.push('day 30 is a Saturday, moved to Monday');}
+  else if(w===0){d=addDays(d,1);notes.push('day 30 is a Sunday, moved to Monday');}
+  var h;
+  while(d.getUTCDay()===0||d.getUTCDay()===6||(h=holidayName(d))){
+    if(h) notes.push(iso(d)+' is '+h+', moved to next business day');
+    d=addDays(d,1); h=null;
+  }
+  return {date:iso(d),notes:notes};
+}
+function norm(s){return String(s||'').trim().toLowerCase();}
+
+function fixedInWindow(fixed,runDate){
+  var start=parseDate(runDate), end=addDays(start,29), lines=[];
+  (fixed||[]).forEach(function(f){
+    var amt=toCents(f.amount), day=parseInt(f.dueDay,10);
+    if(!f.name&&amt===null) return;
+    for(var k=0;k<2;k++){
+      var y=start.getUTCFullYear(), m=start.getUTCMonth()+k;
+      var last=new Date(Date.UTC(y,m+1,0)).getUTCDate();
+      var d=new Date(Date.UTC(y,m,Math.min(day,last)));
+      if(d>=start&&d<=end) lines.push({name:f.name,date:iso(d),cents:amt});
+    }
+  });
+  lines.sort(function(a,b){return a.date<b.date?-1:1;});
+  return lines;
+}
+
+function compute(state){
+  var s=state.settings||{}, flags=[], missing=[], provisional=[], detail=[];
+  var crewByName={};
+  (state.crew||[]).forEach(function(c){ if(c.name) crewByName[norm(c.name)]=c; });
+
+  if(!parseDate(s.runDate)) missing.push('Run date');
+  var opBal=toCents(s.operatingBalance);
+  if(opBal===null||isNaN(opBal)) missing.push('Operating balance');
+  var taxBucket=toCents(s.taxBucket);
+  if(taxBucket===null||isNaN(taxBucket)) missing.push('Tax Bucket balance (do not assume zero)');
+  var fixedRows=(state.fixed||[]).filter(function(f){return f.name||f.amount;});
+  if(!fixedRows.length) missing.push('Fixed costs (fixed-costs file)');
+  fixedRows.forEach(function(f){
+    var a=toCents(f.amount),d=parseInt(f.dueDay,10);
+    if(a===null||isNaN(a)) missing.push('Fixed cost amount for '+(f.name||'unnamed row'));
+    if(!(d>=1&&d<=31)) missing.push('Fixed cost due day for '+(f.name||'unnamed row'));
+  });
+
+  // Work lines
+  var lines=[], payroll=[];
+  (state.work||[]).forEach(function(w,i){
+    if(!w.name&&!w.event) return;
+    var c=crewByName[norm(w.name)];
+    var label=(w.name||'Unnamed')+' ('+(w.event||'no event')+')';
+    var type=c?norm(c.type):'';
+    if(type==='w2'||type==='w-2'){payroll.push({name:w.name,role:w.role||(c&&c.role)||'',event:w.event,eventDate:w.eventDate});return;}
+    var lf=[];
+    if(!c) lf.push(label+': not in crew-rates file, so W-9, payment profile, and contractor status cannot be checked');
+    var rateType=norm(w.rateType)==='hour'||norm(w.rateType)==='hourly'?'hour':(norm(w.rateType)==='day'?'day':null);
+    if(!rateType) missing.push('Rate type (day or hour) for '+label);
+    var given=toCents(w.rate), fileRate=null;
+    if(c&&rateType) fileRate=toCents(rateType==='day'?c.dayRate:c.hourlyRate);
+    var rate=given;
+    if(given===null||isNaN(given)){
+      if(fileRate!==null&&!isNaN(fileRate)) rate=fileRate;
+      else {rate=null; lf.push(label+': missing rate');}
+    } else if(fileRate!==null&&!isNaN(fileRate)&&fileRate!==given){
+      lf.push(label+': rate mismatch. Entered '+fmt(given)+' per '+rateType+', crew-rates file says '+fmt(fileRate));
+    } else if(c&&rateType&&fileRate===null){
+      lf.push(label+': crew-rates file has no '+rateType+' rate to check against');
+    }
+    if(c&&norm(c.w9)!=='yes') lf.push(label+': W-9 not on file');
+    if(c&&norm(c.profile)!=='yes') lf.push(label+': payment profile not on file');
+    var units=Number(String(w.units||'').trim());
+    if(!(String(w.units||'').trim()!==''&&isFinite(units)&&units>0)){missing.push('Hours or days worked for '+label);units=null;}
+    var due=dueDate(w.eventDate);
+    if(!due) missing.push('Event date for '+label);
+    var total=(rate!==null&&units!==null)?Math.round(units*rate):null;
+    var status=norm(w.status)||'not started';
+    lines.push({idx:i,name:w.name,role:w.role||(c&&c.role)||'',event:w.event,eventDate:w.eventDate,units:units,rateType:rateType,rate:rate,total:total,due:due&&due.date,dueNotes:due?due.notes:[],status:status,flags:lf});
+    lf.forEach(function(f){flags.push(f);});
+  });
+
+  var open=lines.filter(function(l){return l.status!=='done';});
+  var openTotal=0, openKnown=true;
+  open.forEach(function(l){ if(l.total===null) openKnown=false; else openTotal+=l.total; });
+
+  // Batch date
+  var batchDate=s.batchDate&&parseDate(s.batchDate)?s.batchDate:null;
+  if(!batchDate){
+    var dues=open.map(function(l){return l.due;}).filter(Boolean).sort();
+    var fut=dues.filter(function(d){return !s.runDate||d>=s.runDate;});
+    batchDate=fut[0]||dues[0]||null;
+  }
+  var batch=open.filter(function(l){return l.due&&batchDate&&l.due<=batchDate;});
+  var batchTotal=0; batch.forEach(function(l){ if(l.total!==null) batchTotal+=l.total; });
+  if(batchDate){ var bd=parseDate(batchDate),bw=bd.getUTCDay(),bh=holidayName(bd);
+    if(bw===0||bw===6) flags.push('Batch date '+batchDate+' is a weekend day');
+    if(bh) flags.push('Batch date '+batchDate+' is '+bh); }
+
+  // Events and tax
+  var eventsOut=[];
+  (state.events||[]).forEach(function(e){
+    if(!e.name) return;
+    var rev=toCents(e.revenue), dc=toCents(e.directCosts);
+    var pay=0, payKnown=true;
+    lines.forEach(function(l){ if(norm(l.event)===norm(e.name)){ if(l.total===null) payKnown=false; else pay+=l.total; } });
+    var prov=(dc===null);
+    var net=(rev===null||isNaN(rev))?null:rev-pay-(prov?0:dc);
+    var setAside=(net===null)?null:Math.round(net*TAX_RATE_NUM/TAX_RATE_DEN);
+    if(net!==null&&net<0) setAside=0;
+    var received=norm(e.received)==='yes';
+    eventsOut.push({name:e.name,date:e.date,revenue:rev,contractorPay:pay,payKnown:payKnown,directCosts:dc,provisional:prov,net:net,setAside:setAside,received:received,setAsideStatus:norm(e.setAside)||'not started'});
+    if(received&&prov) provisional.push('Event Net Revenue for '+e.name+' is provisional: direct costs not provided');
+    if(received&&rev===null) missing.push('Revenue for event '+e.name);
+    if(received&&!payKnown) flags.push('Contractor pay for '+e.name+' is incomplete, so its set-aside is incomplete');
+  });
+
+  var result={lines:lines,open:open,openTotal:openTotal,openKnown:openKnown,batch:batch,batchDate:batchDate,batchTotal:batchTotal,payroll:payroll,events:eventsOut,flags:flags,missing:missing,provisional:provisional,ready:false};
+
+  if(!openKnown) missing.push('Amounts for every open contractor line (see flags)');
+  if(missing.length) { result.detail=['Cannot calculate. Missing inputs:'].concat(missing.map(function(m){return '  '+m;})); return result; }
+
+  var fx=fixedInWindow(fixedRows,s.runDate), fxTotal=0;
+  fx.forEach(function(f){fxTotal+=f.cents;});
+  var taxHeld=norm(s.taxInOperating)!=='no';
+  var taxLess=taxHeld?taxBucket:0;
+  var dist=opBal-MIN_RESERVE-taxLess-openTotal-fxTotal;
+  var payable=dist>0?dist:0;
+  var dustin=Math.floor(payable/2), aracely=payable-dustin;
+  if(payable%2===1) provisional.push('Distribution has an odd cent. Aracely line carries the extra $0.01 so totals reconcile');
+
+  detail.push('Operating Balance                      '+fmt(opBal));
+  detail.push('minus Minimum Reserve                  '+fmt(MIN_RESERVE));
+  detail.push('minus Tax Bucket '+(taxHeld?'(held in operating)   ':'(held elsewhere: $0) ')+fmt(taxLess));
+  detail.push('minus Open Contractor Obligations      '+fmt(openTotal));
+  open.forEach(function(l){detail.push('    '+l.name+' | '+l.event+' | '+l.units+' '+(l.rateType==='day'?'day(s)':'hr(s)')+' x '+fmt(l.rate)+' = '+fmt(l.total)+' | due '+l.due+' | '+l.status);});
+  detail.push('minus Fixed Obligations '+s.runDate+' to '+iso(addDays(parseDate(s.runDate),29))+'  '+fmt(fxTotal));
+  fx.forEach(function(f){detail.push('    '+f.name+' due '+f.date+' = '+fmt(f.cents));});
+  detail.push('= '+fmt(opBal)+' - '+fmt(MIN_RESERVE)+' - '+fmt(taxLess)+' - '+fmt(openTotal)+' - '+fmt(fxTotal)+' = '+fmt(dist));
+  if(dist<=0) detail.push('Result is zero or less. Distribution is $0.00. Shortfall: '+fmt(-dist));
+  else detail.push('Split 50/50: '+fmt(payable)+' / 2 = Dustin '+fmt(dustin)+', Aracely '+fmt(aracely)+'. Check: '+fmt(dustin+aracely));
+  detail.push('');
+  detail.push('Batch: '+batch.length+' line(s) due on or before '+batchDate+' = '+fmt(batchTotal));
+  lines.forEach(function(l){ l.dueNotes.forEach(function(n){detail.push('    '+l.name+' due date: '+n);}); });
+
+  result.opBal=opBal;result.taxLess=taxLess;result.fxTotal=fxTotal;result.fixedLines=fx;
+  result.dist=dist;result.payable=payable;result.dustin=dustin;result.aracely=aracely;result.detail=detail;
+  result.ready=(flags.length===0);
+  return result;
+}
+
+function pad(label,val){var w=31;return (label+' '.repeat(Math.max(1,w-label.length)))+val;}
+function summaryText(r,s){
+  var L=[], bar='========================================', thin='----------------------------------------';
+  L.push(bar,'WEEKLY TREASURY & BATCH AUTHORIZATION','Run date: '+(s.runDate||''),bar);
+  if(r.missing.length){
+    L.push('Cannot calculate. Missing inputs:');
+    r.missing.forEach(function(m){L.push('  '+m);});
+    L.push(thin,'STATUS: Not ready: see flags',bar); return L.join('\n');
+  }
+  L.push(pad('Operating Balance:',fmt(r.opBal)));
+  L.push(pad('Less Minimum Reserve:',fmt(MIN_RESERVE)));
+  L.push(pad('Less Tax Bucket:',fmt(r.taxLess)));
+  L.push(pad('Less Open Contractor Owed:',fmt(r.openTotal)));
+  L.push(pad('Less Fixed Obligations (30d):',fmt(r.fxTotal)));
+  L.push(thin);
+  L.push(pad('Distributable Owner Profit:',fmt(r.payable)));
+  if(r.dist<=0) L.push('  Shortfall: '+fmt(-r.dist)+'. No distribution this week.');
+  L.push(pad('  Dustin (50%):',fmt(r.dustin)));
+  L.push(pad('  Aracely (50%):',fmt(r.aracely)));
+  L.push(thin,'THIS BATCH');
+  L.push(pad('Batch date:',r.batchDate||'none'));
+  L.push(pad('Contractor batch total:',fmt(r.batchTotal)+' ('+r.batch.length+' '+(r.batch.length===1?'person':'people')+')'));
+  L.push('');
+  r.batch.forEach(function(l,i){
+    L.push((i+1)+'. '+l.name+' | '+l.role+' | '+l.event+' | '+l.units+' '+(l.rateType==='day'?(l.units===1?'day':'days'):(l.units===1?'hour':'hours'))+' x '+fmt(l.rate)+' | '+fmt(l.total)+' | Due '+l.due);
+  });
+  if(!r.batch.length) L.push('No lines due on or before the batch date.');
+  L.push('');
+  L.push('STATUS: '+(r.ready?'Ready for approval':'Not ready: see flags'));
+  L.push(bar);
+  return L.join('\n');
+}
+
+function csvCell(v){v=v===null||v===undefined?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function parseCSV(text){
+  var rows=[],row=[],cell='',q=false,i,ch;
+  text=String(text||'').replace(/\r/g,'');
+  for(i=0;i<text.length;i++){ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=ch; }
+    else if(ch==='"') q=true; else if(ch===','){row.push(cell);cell='';}
+    else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';} else cell+=ch;}
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(function(r){return r.some(function(c){return c.trim()!=='';});});
+}
+var FIELD_ALIASES={
+  name:['name','payee','recipient','recipient name','payee name','contractor','vendor','full name'],
+  amount:['amount','payment amount','total','amount (usd)'],
+  event:['event','event name','project'],
+  event_date:['event_date','event date','service date'],
+  payout_date:['payout_date','payout date','pay date','payment date','date','send date'],
+  memo:['memo','note','notes','description','reference']
+};
+function batchCSV(r,s){
+  var header=String(s.templateHeader||'').trim();
+  var cols=header?parseCSV(header)[0].map(function(c){return c.trim();}):['name','amount','event','event_date','payout_date','memo'];
+  var unmapped=[];
+  var map=cols.map(function(c){var n=norm(c);for(var k in FIELD_ALIASES){if(FIELD_ALIASES[k].indexOf(n)>=0) return k;}unmapped.push(c);return null;});
+  var out=[cols.map(csvCell).join(',')];
+  r.batch.forEach(function(l){
+    var vals={name:l.name,amount:(l.total/100).toFixed(2),event:l.event,event_date:l.eventDate,payout_date:r.batchDate,memo:'ADV Media: '+l.event+' '+l.eventDate};
+    out.push(map.map(function(k){return csvCell(k?vals[k]:'');}).join(','));
+  });
+  return {csv:out.join('\n'),unmapped:unmapped};
+}
+function contractorMessage(l,s){
+  var first=String(l.name||'').trim().split(/\s+/)[0]||'there';
+  var m='Hey '+first+', thanks for checking in. Your pay for '+l.event+' on '+l.eventDate+' is scheduled for '+l.due+'.';
+  if(String(s.deliveryWindow||'').trim()) m+=' Through '+(String(s.providerName||'').trim()||'our payment provider')+' it usually lands '+s.deliveryWindow.trim().replace(/\.$/,'')+'.';
+  else m+=' Deposit timing after that depends on our payment provider.';
+  m+=" If it hasn't shown up by then, let us know and we'll look into it.";
+  return m;
+}
+
+function laborLine(w,crewByName){
+  var c=crewByName[norm(w.name)];
+  var rt=norm(w.rateType); rt=(rt==='hour'||rt==='hourly')?'hour':(rt==='day'?'day':null);
+  var given=toCents(w.rate), fileRate=null;
+  if(c&&rt) fileRate=toCents(rt==='day'?c.dayRate:c.hourlyRate);
+  var rate=(given!==null&&!isNaN(given))?given:((fileRate!==null&&!isNaN(fileRate))?fileRate:null);
+  var us=String(w.units==null?'':w.units).trim(), units=Number(us);
+  if(!(us!==''&&isFinite(units)&&units>0)) units=null;
+  var total=(rate!==null&&units!==null&&rt)?Math.round(units*rate):null;
+  return {rateType:rt,rate:rate,units:units,total:total,w2:!!c&&(norm(c.type)==='w2'||norm(c.type)==='w-2'),role:w.role||(c&&c.role)||'',name:w.name||''};
+}
+function eventBreakdown(state,name){
+  var s=state.settings||{}, crewByName={}, missing=[], notes=[];
+  (state.crew||[]).forEach(function(c){ if(c.name) crewByName[norm(c.name)]=c; });
+  var ev=(state.events||[]).filter(function(e){return norm(e.name)===norm(name);})[0]||{};
+  var rev=toCents(ev.revenue);
+  if(rev===null||isNaN(rev)) missing.push('Event total');
+  var dc=toCents(ev.directCosts);
+  if(dc!==null&&isNaN(dc)){missing.push('Direct costs is not a number');}
+  var prov=(dc===null);
+  if(prov) notes.push('Direct costs not entered, so profit is provisional');
+  var positions=[], labor=0;
+  (state.work||[]).forEach(function(w,i){
+    if(!name||norm(w.event)!==norm(name)) return;
+    var l=laborLine(w,crewByName); l.idx=i;
+    if(l.total===null) missing.push('Rate type, hours or days, or rate for '+(l.role||l.name||'a position'));
+    else labor+=l.total;
+    if(l.w2) notes.push((l.name||l.role)+' is W-2. Counted in crew cost here, paid through payroll');
+    positions.push(l);
+  });
+  if(!positions.length) notes.push('No positions entered for this event');
+  var pctStr=String(s.ownerPct==null?'':s.ownerPct).replace(/[%\s]/g,'');
+  var pct=Number(pctStr);
+  if(pctStr===''||!isFinite(pct)||pct<0||pct>100) missing.push('Owner pay % (0 to 100)');
+  var out={name:name,date:ev.date||'',revenue:rev,positions:positions,labor:labor,directCosts:prov?0:dc,provisional:prov,missing:missing,notes:notes};
+  if(missing.length) return out;
+  var net=rev-labor-out.directCosts;
+  var tax=net>0?Math.round(net*TAX_RATE_NUM/TAX_RATE_DEN):0;
+  var after=net-tax;
+  var basis=Math.round(pct*100);
+  var owners=after>0?Math.round(after*basis/10000):0;
+  var dustin=Math.floor(owners/2), aracely=owners-dustin;
+  var business=after-owners;
+  out.pct=pct;out.net=net;out.tax=tax;out.after=after;out.owners=owners;out.dustin=dustin;out.aracely=aracely;out.business=business;
+  out.margin=rev>0?net/rev:0;
+  out.check=labor+out.directCosts+tax+owners+business;
+  if(net<0) notes.push('This event lost money. No tax set-aside and no owner pay');
+  return out;
+}
+function breakdownText(b){
+  function row(label,val){return label+' '.repeat(Math.max(1,50-label.length-val.length))+val;}
+  var L=[],thin='--------------------------------------------------';
+  L.push('EVENT BREAKDOWN: '+(b.name||'unnamed')+(b.date?' ('+b.date+')':''));
+  L.push(thin);
+  if(b.missing.length){L.push('Cannot calculate. Missing:');b.missing.forEach(function(m){L.push('  '+m);});return L.join('\n');}
+  L.push(row('Event total',fmt(b.revenue)));
+  L.push('');
+  L.push('Crew');
+  b.positions.forEach(function(p){
+    var u=p.units+' '+(p.rateType==='day'?(p.units===1?'day':'days'):(p.units===1?'hr':'hrs'));
+    L.push(row('  '+(p.role||'position')+(p.name?', '+p.name:'')+(p.w2?' (W-2)':''),fmt(p.total)));
+    L.push('      '+u+' x '+fmt(p.rate));
+  });
+  L.push(row('Crew total','- '+fmt(b.labor)));
+  L.push(row('Direct costs',b.provisional?'not entered':'- '+fmt(b.directCosts)));
+  L.push(thin);
+  L.push(row('Event profit ('+(b.margin*100).toFixed(1)+'% of total)'+(b.provisional?' provisional':''),fmt(b.net)));
+  L.push(row('Tax set-aside (25% of profit)','- '+fmt(b.tax)));
+  L.push(row('Profit after tax',fmt(b.after)));
+  L.push(row('Owner pay ('+b.pct+'% of profit after tax)','- '+fmt(b.owners)));
+  L.push(row('  Dustin (50%)',fmt(b.dustin)));
+  L.push(row('  Aracely (50%)',fmt(b.aracely)));
+  L.push(thin);
+  L.push(row('Left for business expenses',fmt(b.business)));
+  L.push('');
+  L.push('Check: '+fmt(b.labor)+' crew + '+fmt(b.directCosts)+' direct + '+fmt(b.tax)+' tax + '+fmt(b.owners)+' owners + '+fmt(b.business)+' business = '+fmt(b.check)+(b.check===b.revenue?'  matches event total':'  DOES NOT MATCH'));
+  return L.join('\n');
+}
+
+root.TE={eventBreakdown:eventBreakdown,breakdownText:breakdownText,toCents:toCents,fmt:fmt,dueDate:dueDate,bankHolidays:bankHolidays,fixedInWindow:fixedInWindow,compute:compute,summaryText:summaryText,batchCSV:batchCSV,parseCSV:parseCSV,contractorMessage:contractorMessage};
+})(typeof window!=='undefined'?window:globalThis);
+</script>
+
+<script>
+(function(){
+'use strict';
+var KEY='treasury-engine-v1';
+var SCHEMAS={
+  work:[['name','Name','text'],['role','Role','text'],['event','Event','text'],['eventDate','Event date','date'],['units','Hours or days','num'],['rateType','Rate type','sel',['day','hour']],['rate','Rate ($)','num'],['status','Pay status','sel',['not started','in progress','done']]],
+  crew:[['name','Name','text'],['role','Role','text'],['dayRate','Day rate ($)','num'],['hourlyRate','Hourly rate ($)','num'],['w9','W-9 on file','sel',['no','yes']],['profile','Payment profile','sel',['no','yes']],['type','Type','sel',['contractor','w2']]],
+  fixed:[['name','Bill','text'],['amount','Amount ($)','num'],['dueDay','Due day','num']],
+  events:[['name','Event','text'],['date','Event date','date'],['revenue','Revenue ($)','num'],['directCosts','Direct costs ($, blank = not provided)','num'],['received','Payment received','sel',['no','yes']],['setAside','Set-aside','sel',['not started','done']]]
+};
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function blank(){return {settings:{runDate:today(),taxInOperating:'yes'},work:[],crew:[],fixed:[],events:[]};}
+var state;
+try{state=JSON.parse(localStorage.getItem(KEY))||blank();}catch(e){state=blank();}
+['work','crew','fixed','events'].forEach(function(k){if(!Array.isArray(state[k]))state[k]=[];});
+state.settings=state.settings||{};
+if(!state.settings.runDate) state.settings.runDate=today();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function renderTable(kind){
+  var sc=SCHEMAS[kind],rows=state[kind];
+  var h='<table><thead><tr>'+sc.map(function(c){return '<th>'+esc(c[1])+'</th>';}).join('')+'<th></th></tr></thead><tbody>';
+  rows.forEach(function(r,i){
+    h+='<tr>'+sc.map(function(c){
+      var v=r[c[0]]==null?'':r[c[0]];
+      if(c[2]==='sel') return '<td><select data-k="'+kind+'" data-i="'+i+'" data-f="'+c[0]+'">'+c[3].map(function(o){return '<option'+(String(v)===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></td>';
+      return '<td><input '+(c[2]==='date'?'type="date"':(c[2]==='num'?'inputmode="decimal"':''))+' data-k="'+kind+'" data-i="'+i+'" data-f="'+c[0]+'" value="'+esc(v)+'"></td>';
+    }).join('')+'<td><button class="x ghost" data-del="'+kind+'" data-i="'+i+'" title="Remove">Remove</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  if(!rows.length) h='<p class="note">No rows yet.</p>';
+  document.getElementById('t-'+kind).innerHTML=h;
+}
+function defaults(kind){var o={};SCHEMAS[kind].forEach(function(c){o[c[0]]=c[2]==='sel'?c[3][0]:'';});return o;}
+
+var last=null;
+function recompute(){
+  var s=state.settings, r=TE.compute(state); last=r;
+  document.getElementById('summary').textContent=TE.summaryText(r,s);
+  var allFlags=r.flags.slice();
+  var b={csv:'',unmapped:[]};
+  if(!r.missing.length){b=TE.batchCSV(r,s);b.unmapped.forEach(function(c){allFlags.push('Batch template column "'+c+'" has no matching field, left blank');});}
+  if(!String(s.deliveryWindow||'').trim()) allFlags.push('No payout provider delivery window set. Messages will not promise a day.');
+  document.getElementById('csv').textContent=r.missing.length?'Not built. Missing inputs listed in the summary.':b.csv;
+  var fl=r.missing.map(function(m){return 'Missing: '+m;}).concat(allFlags).concat(r.provisional);
+  document.getElementById('flags').innerHTML=fl.length?'<ul class="flags">'+fl.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>':'<p>No flags.</p>';
+  document.getElementById('payroll').innerHTML=r.payroll.length?'<ul>'+r.payroll.map(function(p){return '<li>'+esc(p.name+' | '+p.role+' | '+p.event+' | '+p.eventDate)+'</li>';}).join('')+'</ul>':'<p class="note">No W-2 staff on this roster.</p>';
+  document.getElementById('detail').textContent=(r.detail||[]).join('\n');
+  // tax
+  var t=r.events.map(function(e){
+    if(e.net===null) return e.name+': revenue missing';
+    return e.name+(e.provisional?' (provisional)':'')+'\n  Revenue '+TE.fmt(e.revenue)+' - contractor pay '+TE.fmt(e.contractorPay)+' - direct costs '+(e.provisional?'not provided':TE.fmt(e.directCosts))+' = net '+TE.fmt(e.net)+
+      '\n  25% set-aside = '+TE.fmt(e.setAside)+' | payment received: '+(e.received?'yes':'no')+' | set-aside: '+e.setAsideStatus;
+  });
+  document.getElementById('taxDetail').textContent=t.length?t.join('\n\n'):'No events entered.';
+  var pend=r.events.filter(function(e){return e.received&&e.setAsideStatus!=='done'&&e.setAside!==null;});
+  var tb=document.getElementById('taxBtns');
+  if(!tb){tb=document.createElement('div');tb.id='taxBtns';tb.className='row';document.getElementById('taxDetail').after(tb);}
+  tb.innerHTML=pend.map(function(e){return '<button data-addtax="'+esc(e.name)+'">Add '+TE.fmt(e.setAside)+' for '+esc(e.name)+' to Tax Bucket</button>';}).join('');
+  // messages
+  var pick=document.getElementById('msgPick'),cur=pick.value;
+  pick.innerHTML=r.lines.filter(function(l){return l.due;}).map(function(l){return '<option value="'+l.idx+'">'+esc(l.name+' | '+l.event+' | '+l.eventDate)+'</option>';}).join('');
+  if(cur) pick.value=cur;
+  renderMsg();
+  updateBreakdown();
+}
+function curEvent(){
+  if(!state.events.length) state.events.push(defaults('events'));
+  var i=parseInt(state.settings.bdEvent,10);
+  if(!(i>=0&&i<state.events.length)) i=state.events.length-1;
+  state.settings.bdEvent=i;
+  return state.events[i];
+}
+function fillPick(){
+  var pick=document.getElementById('bdPick'), i=state.settings.bdEvent;
+  pick.innerHTML=state.events.map(function(e,k){return '<option value="'+k+'"'+(k===i?' selected':'')+'>'+esc((e.name||'(unnamed event)')+(e.date?' | '+e.date:''))+'</option>';}).join('');
+}
+function renderBreakdown(){
+  var ev=curEvent(); fillPick();
+  document.querySelectorAll('[data-ev]').forEach(function(el){el.value=ev[el.dataset.ev]==null?'':ev[el.dataset.ev];});
+  var h='<table><thead><tr><th>Position</th><th>Name</th><th>Rate type</th><th>Hours or days</th><th>Rate ($)</th><th style="text-align:right">Pay</th><th></th></tr></thead><tbody>';
+  var n=0;
+  state.work.forEach(function(w,i){
+    if(!ev.name||String(w.event||'').trim().toLowerCase()!==String(ev.name).trim().toLowerCase()) return; n++;
+    function inp(f,extra){return '<td><input '+(extra||'')+' data-k="work" data-i="'+i+'" data-f="'+f+'" value="'+esc(w[f]==null?'':w[f])+'"></td>';}
+    h+='<tr>'+inp('role','placeholder="A1, Camera..."')+inp('name')+
+      '<td><select data-k="work" data-i="'+i+'" data-f="rateType">'+['day','hour'].map(function(o){return '<option'+(w.rateType===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></td>'+
+      inp('units','inputmode="decimal"')+inp('rate','inputmode="decimal" placeholder="from crew rates"')+
+      '<td class="pay" id="bdPay-'+i+'"></td><td><button class="x ghost" data-del="work" data-i="'+i+'">Remove</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('bdPositions').innerHTML=n?h:'<p class="note">No positions yet. Enter the event name, then add positions.</p>';
+  updateBreakdown();
+}
+function updateBreakdown(){
+  var ev=curEvent(), b=TE.eventBreakdown(state,ev.name);
+  b.positions.forEach(function(p){var c=document.getElementById('bdPay-'+p.idx);if(c)c.textContent=p.total===null?'':TE.fmt(p.total);});
+  document.getElementById('bdOut').textContent=TE.breakdownText(b);
+  document.getElementById('bdNotes').innerHTML=b.notes.length?'<ul class="flags note">'+b.notes.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'';
+  var big='',bar='';
+  if(!b.missing.length){
+    big='<div class="big"><div><small>Event total</small><b>'+TE.fmt(b.revenue)+'</b></div><div><small>Crew</small><b>'+TE.fmt(b.labor)+'</b></div><div><small>Profit'+(b.provisional?' (provisional)':'')+'</small><b>'+TE.fmt(b.net)+'</b></div><div><small>Dustin</small><b>'+TE.fmt(b.dustin)+'</b></div><div><small>Aracely</small><b>'+TE.fmt(b.aracely)+'</b></div><div><small>Left for business</small><b>'+TE.fmt(b.business)+'</b></div></div>';
+    if(b.revenue>0&&b.net>0){
+      var segs=[['Crew',b.labor,'--s1'],['Direct costs',b.directCosts,'--s2'],['Tax set-aside',b.tax,'--s3'],['Dustin',b.dustin,'--s4'],['Aracely',b.aracely,'--s5'],['Business',b.business,'--s6']].filter(function(s){return s[1]>0;});
+      bar='<div class="bar">'+segs.map(function(s){return '<span style="width:'+(s[1]/b.revenue*100)+'%;background:var('+s[2]+')" title="'+s[0]+'"></span>';}).join('')+'</div><div class="legend">'+
+        segs.map(function(s){return '<span><i style="background:var('+s[2]+')"></i>'+s[0]+' '+(s[1]/b.revenue*100).toFixed(1)+'%</span>';}).join('')+'</div>';
+    }
+  }
+  var tb='';
+  if(b.missing.length) tb='<p class="attn">Missing: '+esc(b.missing.join(', '))+'</p>';
+  else {
+    var R=function(l,v,c){return '<tr'+(c?' class="'+c+'"':'')+'><td>'+l+'</td><td>'+v+'</td></tr>';};
+    tb='<table class="sum"><tbody>'+R('Event total',TE.fmt(b.revenue));
+    b.positions.forEach(function(p){tb+=R(esc((p.role||'position')+(p.name?', '+p.name:'')+(p.w2?' (W-2)':''))+'<div class="sub2">'+p.units+' '+(p.rateType==='day'?(p.units===1?'day':'days'):(p.units===1?'hr':'hrs'))+' x '+TE.fmt(p.rate)+'</div>','- '+TE.fmt(p.total));});
+    tb+=R('Crew total','- '+TE.fmt(b.labor))+R('Direct costs',b.provisional?'not entered':'- '+TE.fmt(b.directCosts))+
+      R('Event profit ('+(b.margin*100).toFixed(1)+'%)'+(b.provisional?' provisional':''),TE.fmt(b.net),'t')+
+      R('Tax set-aside (25%)','- '+TE.fmt(b.tax))+R('Profit after tax',TE.fmt(b.after),'t')+
+      R('Owner pay ('+b.pct+'%)','- '+TE.fmt(b.owners))+R('<span class="sub2">Dustin</span>',TE.fmt(b.dustin))+R('<span class="sub2">Aracely</span>',TE.fmt(b.aracely))+
+      R('Left for business expenses',TE.fmt(b.business),'t')+'</tbody></table>'+
+      '<p class="note">Check: crew + direct + tax + owners + business = '+TE.fmt(b.check)+(b.check===b.revenue?', matches the event total.':'. DOES NOT MATCH the event total.')+'</p>';
+  }
+  document.getElementById('bdTable').innerHTML=tb;
+  document.getElementById('bdBig').innerHTML=big;
+  document.getElementById('bdBar').innerHTML=bar;
+  // all events
+  var anyProv=false, rows=state.events.filter(function(e){return e.name;}), tot={revenue:0,labor:0,net:0,tax:0,dustin:0,aracely:0,business:0}, ok=0;
+  var t='<table><thead><tr><th>Event</th><th>Date</th><th>Total</th><th>Crew</th><th>Profit</th><th>Tax</th><th>Dustin</th><th>Aracely</th><th>Business</th></tr></thead><tbody>';
+  rows.forEach(function(e){
+    var x=TE.eventBreakdown(state,e.name);
+    if(x.missing.length){t+='<tr><td>'+esc(e.name)+'</td><td>'+esc(e.date||'')+'</td><td colspan="7" class="note">needs: '+esc(x.missing.join(', '))+'</td></tr>';return;}
+    if(x.provisional)anyProv=true; ok++; Object.keys(tot).forEach(function(k){tot[k]+=x[k];});
+    t+='<tr><td>'+esc(e.name)+(x.provisional?' *':'')+'</td><td>'+esc(e.date||'')+'</td>'+['revenue','labor','net','tax','dustin','aracely','business'].map(function(k){return '<td class="pay">'+TE.fmt(x[k])+'</td>';}).join('')+'</tr>';
+  });
+  if(ok>1) t+='<tr><td><b>Total</b></td><td></td>'+['revenue','labor','net','tax','dustin','aracely','business'].map(function(k){return '<td class="pay"><b>'+TE.fmt(tot[k])+'</b></td>';}).join('')+'</tr>';
+  t+='</tbody></table>';
+  document.getElementById('bdAll').innerHTML=rows.length?t+(anyProv?'<p class="note">* profit is provisional: direct costs not entered.</p>':''):'<p class="note">No events yet.</p>';
+}
+function renderMsg(){
+  var pick=document.getElementById('msgPick'),l=last&&last.lines.filter(function(x){return String(x.idx)===pick.value;})[0];
+  document.getElementById('msgOut').textContent=l?TE.contractorMessage(l,state.settings):'Add crew work with an event date first.';
+}
+function renderAll(){curEvent();['work','crew','fixed','events'].forEach(renderTable);
+  document.querySelectorAll('[data-set]').forEach(function(el){var v=state.settings[el.dataset.set];if(v!=null)el.value=v;});
+  renderBreakdown();
+  recompute();}
+
+document.addEventListener('input',function(e){
+  var el=e.target;
+  if(el.dataset.ev){
+    var ev=curEvent(),f=el.dataset.ev,old=ev[f];ev[f]=el.value;
+    if(f==='name'&&old) state.work.forEach(function(w){if(String(w.event||'').trim().toLowerCase()===String(old).trim().toLowerCase())w.event=el.value;});
+    if(f==='date') state.work.forEach(function(w){if(ev.name&&String(w.event||'').trim().toLowerCase()===String(ev.name).trim().toLowerCase())w.eventDate=el.value;});
+    fillPick();save();recompute();
+  }
+  else if(el.dataset.set){state.settings[el.dataset.set]=el.value;save();recompute();}
+  else if(el.dataset.k){state[el.dataset.k][+el.dataset.i][el.dataset.f]=el.value;save();recompute();}
+});
+document.addEventListener('change',function(e){
+  var el=e.target;
+  if(el.id==='msgPick') renderMsg();
+  else if(el.id==='bdPick'){state.settings.bdEvent=parseInt(el.value,10);save();renderBreakdown();}
+  else if(el.tagName==='SELECT'&&el.dataset.k){state[el.dataset.k][+el.dataset.i][el.dataset.f]=el.value;save();recompute();}
+  else if(el.tagName==='SELECT'&&el.dataset.set){state.settings[el.dataset.set]=el.value;save();recompute();}
+});
+document.addEventListener('click',function(e){
+  var el=e.target.closest('button'); if(!el) return;
+  if(el.dataset.tab){document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b===el);});
+    document.querySelectorAll('main section').forEach(function(s){s.classList.toggle('on',s.id===el.dataset.tab);});renderAll();}
+  else if(el.id==='bdNew'){state.events.push(defaults('events'));state.settings.bdEvent=state.events.length-1;save();renderAll();document.querySelector('[data-ev="name"]').focus();}
+  else if(el.id==='bdAddPos'){var ev=curEvent();if(!String(ev.name||'').trim()){alert('Enter the event name first.');return;}
+    var w=defaults('work');w.event=ev.name;w.eventDate=ev.date||'';state.work.push(w);save();renderAll();}
+  else if(el.id==='bdCopy') copy(document.getElementById('bdOut').textContent);
+  else if(el.dataset.add){state[el.dataset.add].push(defaults(el.dataset.add));save();renderAll();}
+  else if(el.dataset.del){state[el.dataset.del].splice(+el.dataset.i,1);if(el.dataset.del==='events')state.settings.bdEvent=null;save();renderAll();}
+  else if(el.dataset.import){
+    var kind=el.dataset.import,ta=document.querySelector('[data-paste="'+kind+'"]'),rows=TE.parseCSV(ta.value);
+    if(rows.length<2){alert('Paste a header row and at least one data row.');return;}
+    var head=rows[0].map(function(h){return h.trim();}),fields=SCHEMAS[kind].map(function(c){return c[0];});
+    var lower=fields.map(function(f){return f.toLowerCase();});
+    var idx=head.map(function(h){return lower.indexOf(h.toLowerCase());});
+    rows.slice(1).forEach(function(r){var o=defaults(kind);idx.forEach(function(j,k){if(j>=0)o[fields[j]]=(r[k]||'').trim();});state[kind].push(o);});
+    ta.value='';save();renderTable(kind);recompute();
+  }
+  else if(el.dataset.addtax){
+    var ev=last.events.filter(function(x){return x.name===el.dataset.addtax;})[0];
+    var cur=TE.toCents(state.settings.taxBucket);
+    if(cur===null||isNaN(cur)){alert('Enter the current Tax Bucket balance on the Run tab first.');return;}
+    if(!confirm('Add '+TE.fmt(ev.setAside)+' to the Tax Bucket for '+ev.name+'?'))return;
+    state.settings.taxBucket=((cur+ev.setAside)/100).toFixed(2);
+    state.events.forEach(function(x){if(x.name===ev.name)x.setAside='done';});
+    save();renderAll();
+  }
+  else if(el.id==='copySummary') copy(document.getElementById('summary').textContent);
+  else if(el.id==='copyCsv') copy(document.getElementById('csv').textContent);
+  else if(el.id==='copyMsg') copy(document.getElementById('msgOut').textContent);
+  else if(el.id==='dlCsv'){ if(last.missing.length){alert('Missing inputs. See the summary.');return;}
+    download('adv-batch-'+(last.batchDate||'draft')+'.csv',document.getElementById('csv').textContent,'text/csv');}
+  else if(el.id==='exportBtn') download('treasury-engine-backup-'+today()+'.json',JSON.stringify(state,null,2),'application/json');
+  else if(el.id==='themeBtn'){var r=document.documentElement,c=r.dataset.theme;r.dataset.theme=c==='dark'?'light':(c==='light'?'':'dark');if(!r.dataset.theme)delete r.dataset.theme;
+    try{localStorage.setItem(KEY+'-theme',r.dataset.theme||'');}catch(e){}}
+});
+document.getElementById('importFile').addEventListener('change',function(e){
+  var f=e.target.files[0]; if(!f) return; var rd=new FileReader();
+  rd.onload=function(){try{var d=JSON.parse(rd.result);if(!confirm('Replace all data in this browser with the backup?'))return;state=d;save();renderAll();}catch(err){alert('That file is not a Treasury Engine backup.');}};
+  rd.readAsText(f);
+});
+function copy(t){if(navigator.clipboard)navigator.clipboard.writeText(t).catch(function(){});}
+function download(name,text,type){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;document.body.appendChild(a);a.click();a.remove();}
+try{var th=localStorage.getItem(KEY+'-theme');if(th)document.documentElement.dataset.theme=th;}catch(e){}
+renderAll();
+})();
+</script>
+</body>
+</html>
